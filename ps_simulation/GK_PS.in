@@ -1,0 +1,163 @@
+# Polystyrene LAMMPS simulations.
+units          real
+atom_style     full
+boundary       p p p
+processors     * * *
+
+#package        gpu 1 gpuID 0 0 device pascal
+
+pair_style     lj/cut 8.0
+pair_modify    mix arithmetic
+special_bonds  lj 0.0 0.0 1.0
+bond_style     harmonic
+angle_style    harmonic 
+dihedral_style harmonic
+improper_style hybrid cossq ring
+
+# VARIABLES SETUP
+variable        Ti          equal 300
+variable        dT          equal 150
+variable        Tf          equal (${Ti}+${dT})
+variable    V equal vol
+variable    dt equal 1
+variable    p equal 200      # correlation length default 200
+variable    s equal 10      # sample interval
+variable    d equal $p*$s   # dump interval
+
+
+# convert from LAMMPS real units to SI
+variable    kB equal 1.3806504e-23    # [J/K] Boltzmann
+variable    kCal2J equal 4186.0/6.02214e23
+variable    A2m equal 1.0e-10
+variable    fs2s equal 1.0e-15
+variable    convert equal ${kCal2J}*${kCal2J}/${fs2s}/${A2m}
+
+
+variable        DumpMOV     equal 500000
+variable        DumpTHE     equal 10000
+variable        MDProd      equal 5000000
+# DATA INPUT SECTION --------------------------------------
+read_data      ../data.7656250 #data.656250  #data.afterNPT2
+group          mobile union all
+velocity       all zero linear
+# ---------------------------------------------------------
+
+
+# TRAJECTORY DUMPING ENABLED --------------------------------------------------
+thermo_style   custom step temp density etotal pe ke ebond eangle edihed eimp evdwl pxx pyy pzz pxy pxz pyz
+# thermo_modify  line multi
+thermo         ${DumpTHE}
+thermo_modify  flush yes
+# ---------------------------------------------------------
+
+
+# NON-BONDED INTERACTIONS ---------------------------------
+#pair_style     lj/cut/gpu 7.65
+#pair_coeff     1  1  0.12  4.321    # end CH3 - end CH3
+#pair_coeff     2  2  0.09  4.153    # al CH - al CH
+#pair_coeff     3  3  0.12  4.153    # ar C - ar C
+#pair_coeff     4  4  0.12  4.153    # ar CH - ar CH
+#pair_coeff     5  5  0.12  4.321    # al CH2 - al CH2 
+#pair_modify    mix arithmetic tail no
+# ---------------------------------------------------------
+
+
+# NON-BONDED INTERACTIONS (GVOG) ------------------
+pair_style    lj/quintic 7.6 9.5
+pair_coeff    1  1  0.12  3.8500  7.6  9.5  # end CH3
+pair_coeff    2  2  0.09  3.6900  7.6  9.5  # aliphatic CH
+pair_coeff    3  3  0.12  3.6900  7.6  9.5  # aromatic C
+pair_coeff    4  4  0.12  3.6900  7.6  9.5  # aliphatic CH
+pair_coeff    5  5  0.12  3.8500  7.6  9.5  # aliphatic CH2
+pair_modify    mix arithmetic tail no
+# --------------------------------------------------------
+
+# Improper Coeffs
+ 
+improper_coeff 1    cossq    4.0   0.0   # Phenyl ring torsion around CH(aliph)-C(arom)
+improper_coeff 2    ring     9000  109.5  # Improper torsion to maintain chirality
+
+# SET UP DUMP FOR VISUALIZATION
+dump            d_mov all custom ${DumpMOV} mov.lammpstrj id type xu yu zu
+dump_modify     d_mov sort id
+# -----------------------------------------
+
+# EXECUTION OPTIONS ---------------------------------------
+timestep       1
+# ---------------------------------------------------------
+
+
+# gvog: Run for 5 ns under constant density:
+# fix            nvt300 all nvt temp 300.0 300.0 100 
+# run            ${runNVT}
+# unfix          nvt300
+
+# write_data data.afterNVT
+
+
+# Initial pressure equilibration at target temp
+# fix 	       fnpt all npt temp ${Tf} ${Tf} 100 iso 1.0 1.0 1000.0
+# run            ${runNPT}
+# unfix fnpt
+
+# write_data data.afterNPT2
+
+variable Lx equal (xhi-xlo)
+variable Ly equal (yhi-ylo)
+variable Lz equal (zhi-zlo)
+variable L0 equal ${Lx}
+print "Lx =  ${Lx} ; Ly =  ${Ly} ; Lz =  ${Lz}"
+
+#################################
+# Stretching in the npt ensemble
+# ###############################
+
+# fix fnpt all npt temp ${Tf} ${Tf} 100 y 1.0 1.0 1000.0 z 1.0 1.0 1000.0 couple yz
+# fix def  all deform 1 x trate 0.0000001 remap v
+
+#########################################
+# Thermal Conductivity caluclation, switch to NVE if desired
+#########################################
+fix fnvt all nvt temp ${Tf} ${Tf} 100
+
+reset_timestep 0
+compute      myKE all ke/atom
+compute      myPE all pe/atom
+compute      myStress all stress/atom NULL virial
+compute      flux all heat/flux myKE myPE myStress
+compute      Tau2 all pressure thermo_temp
+
+variable     Jx equal c_flux[1]/vol
+variable     Jy equal c_flux[2]/vol
+variable     Jz equal c_flux[3]/vol
+
+fix          JJ all ave/correlate $s $p $d &
+             c_flux[1] c_flux[2] c_flux[3] type auto/upper file J0Jt.data ave running
+
+variable     scale equal ${convert}/${kB}/${Tf}/${Tf}/$V*$s*${dt}
+variable     TS equal trap(f_JJ[1])*${scale}
+variable     NS equal trap(f_JJ[2])*${scale}
+variable     k11 equal trap(f_JJ[3])*${scale}
+variable     k22 equal trap(f_JJ[6])*${scale}
+variable     k33 equal trap(f_JJ[8])*${scale}
+variable     k12 equal trap(f_JJ[4])*${scale}
+variable     k13 equal trap(f_JJ[5])*${scale}
+variable     k23 equal trap(f_JJ[7])*${scale}
+variable     k equal (v_k11+v_k22+v_k33)/3.0
+
+variable myN equal ((-c_Tau2[1]+c_Tau2[2])*0.101325)
+
+fix ave2 all ave/time 1 1000 1000 v_myN c_Tau2[1] c_Tau2[2] c_Tau2[3] c_Tau2[4] c_Tau2[5] c_Tau2[6] file Tau2.evol
+
+#fix          ave all ave/time $d 1 $(v_d*1) v_k file k.evol
+
+thermo_style custom step temp v_Jx v_Jy v_Jz v_TS v_NS v_k11 v_k22 v_k33 v_k12 v_k13 v_k23
+
+run          ${MDProd}
+
+variable     ndens equal count(all)/vol
+print        "average conductivity: $k[W/mK] @ ${Tf} K, ${ndens} /A^3"
+
+print "Lx =  ${Lx} ; Ly =  ${Ly} ; Lz =  ${Lz}"
+
+quit

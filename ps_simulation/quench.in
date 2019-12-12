@@ -1,0 +1,169 @@
+# Fullerenes - polystyrene nanocomposite system LAMMPS simulations.
+units          real
+atom_style     full
+boundary       p p p
+processors     * * *
+
+#package        gpu 1 neigh yes newton off device pascal 
+
+pair_style     lj/cut 9.5
+pair_modify    mix arithmetic
+special_bonds  lj 0.0 0.0 1.0
+bond_style     harmonic
+angle_style    harmonic 
+dihedral_style harmonic
+improper_style hybrid cossq ring
+
+
+# DATA INPUT SECTION --------------------------------------
+read_data      ps_rev_20x50_01.data  #ps_10x300_min.data
+group          mobile union all
+velocity       all zero linear
+# ---------------------------------------------------------
+
+
+# TRAJECTORY DUMPING ENABLED --------------------------------------------------
+thermo_style   custom step temp density etotal pe ke ebond eangle edihed eimp evdwl pxx pyy pzz pxy pxz pyz
+# thermo_modify  line multi
+thermo         5000
+thermo_modify  flush yes
+# ---------------------------------------------------------
+
+
+# NON-BONDED INTERACTIONS (GVOG) ------------------
+pair_style    lj/quintic 7.6 9.5
+pair_coeff    1  1  0.12  3.8500  7.6  9.5   # end CH3
+pair_coeff    2  2  0.09  3.6900  7.6  9.5   # aliphatic CH
+pair_coeff    3  3  0.12  3.6900  7.6  9.5   # aromatic C
+pair_coeff    4  4  0.12  3.6900  7.6  9.5   # aliphatic CH
+pair_coeff    5  5  0.12  3.8500  7.6  9.5   # aliphatic CH2
+pair_modify   mix arithmetic tail no shift no
+# --------------------------------------------------------
+
+# NON-BONDED INTERACTIONS (GPU) -------------------
+#pair_style    lj/cut/gpu 9.5
+#pair_coeff    1  1  0.12  3.8500  9.5   # end CH3
+#pair_coeff    2  2  0.09  3.6900  9.5   # aliphatic CH
+#pair_coeff    3  3  0.12  3.6900  9.5   # aromatic C
+#pair_coeff    4  4  0.12  3.6900  9.5   # aliphatic CH
+#pair_coeff    5  5  0.12  3.8500  9.5   # aliphatic CH2
+#pair_modify   mix arithmetic tail no shift no
+# --------------------------------------------------------
+
+
+# SET UP DUMP FOR VISUALIZATION
+dump            d_mov all custom 10000000 mov.lammpstrj id type xu yu zu
+dump_modify     d_mov sort id
+# # -----------------------------------------
+
+
+# EXECUTION OPTIONS ---------------------------------------
+timestep       1
+# ---------------------------------------------------------
+
+
+# Begin the quenching from 500 K
+velocity       all create 500 1230321 mom yes rot yes dist gaussian
+
+
+fix            npt500 all npt temp 500.0 500.0 100 iso 1.0 1.0 1000 
+run            10000000
+write_data     data.npt500
+unfix          npt500
+# -----------------------------------------------------------------------------
+
+fix            fnpt1 all npt temp 500 475 100 iso 1.0 1.0 1000.0
+run            2500000
+write_data     data.q475
+unfix          fnpt1
+
+
+fix            npt475 all npt temp 475.0 475.0 100 iso 1.0 1.0 1000 
+run            10000000
+write_data     data.npt475
+unfix          npt475
+# -----------------------------------------------------------------------------
+fix            fnpt2 all npt temp 475 450 100 iso 1.0 1.0 1000.0
+run            2500000
+write_data     data.q450
+unfix          fnpt2
+
+fix            npt450 all npt temp 450.0 450.0 100 iso 1.0 1.0 1000 
+run            10000000
+write_data     data.npt450
+unfix          npt450
+# -----------------------------------------------------------------------------
+fix            fnpt3 all npt temp 450 425 100 iso 1.0 1.0 1000.0
+run            2500000
+write_data     data.q425
+unfix          fnpt3
+
+fix            npt425 all npt temp 425.0 425.0 100 iso 1.0 1.0 1000 
+run            10000000
+write_data     data.npt425
+unfix          npt425
+# -----------------------------------------------------------------------------
+fix            fnpt4 all npt temp 425 400 100 iso 1.0 1.0 1000.0
+run            2500000
+write_data     data.q400
+unfix          fnpt4
+
+fix            npt400 all npt temp 400.0 400.0 100 iso 1.0 1.0 1000 
+run            10000000
+write_data     data.npt400
+unfix          npt400
+# -----------------------------------------------------------------------------
+fix            fnpt5 all npt temp 400 375 100 iso 1.0 1.0 1000.0
+run            2500000
+write_data     data.q375
+unfix          fnpt5
+
+fix            npt375 all npt temp 375.0 375.0 100 iso 1.0 1.0 1000 
+run            10000000
+write_data     data.npt375
+unfix          npt375
+# -----------------------------------------------------------------------------
+fix            fnpt6 all npt temp 375 350 100 iso 1.0 1.0 1000.0
+run            2500000
+write_data     data.q350
+unfix          fnpt6
+
+fix            npt350 all npt temp 350.0 350.0 100 iso 1.0 1.0 1000 
+run            10000000
+write_data     data.npt350
+unfix          npt350
+# -----------------------------------------------------------------------------
+fix            fnpt7 all npt temp 350 325 100 iso 1.0 1.0 1000.0
+run            2500000
+write_data     data.q325
+unfix          fnpt7
+
+fix            npt325 all npt temp 325.0 325.0 100 iso 1.0 1.0 1000 
+run            10000000
+write_data     data.npt325
+unfix          npt325
+# -----------------------------------------------------------------------------
+
+fix            fnpt8 all npt temp 325 300 100 iso 1.0 1.0 1000.0
+run            2500000
+write_data     data.q300
+unfix          fnpt8
+
+
+fix            npt300 all npt temp 300.0 300.0 100 iso 1.0 1.0 1000 
+run            10000000
+write_data     data.npt300
+unfix          npt300
+# -----------------------------------------------------------------------------
+fix            fnpt9 all npt temp 300 275 100 iso 1.0 1.0 1000.0
+run            2500000
+write_data     data.q275
+unfix          fnpt9
+
+fix            npt275 all npt temp 275.0 275.0 100 iso 1.0 1.0 1000 
+run            10000000
+write_data     data.npt275
+unfix          npt275
+# -----------------------------------------------------------------------------
+
+quit
