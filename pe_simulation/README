@@ -4,6 +4,8 @@ GK_PE.in > Input file for 5 ns isochoric relaxation run to measure TC using GK m
 
 pe_stretch > Input file for the uniaxial extension of PE melts
 
+pe_shear > Input file for the shear deformation of PE melts
+
 pe_8x1000.data > example configuration polyethylene melt with 8 chains of 1000 monomers each. 
 
 pe_16x500.data > example configuration polyethylene melt with 16 chains of 500 monomers each. 
