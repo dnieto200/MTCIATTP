@@ -1,0 +1,7 @@
+#This folder contains the following lammps simulation inputs
+
+GK_PS.in > Isochoric run for the calculation of TC using GK methods
+
+quench.in > Quenching and equilibriaon of PS melts
+
+ps20x50_01.data > Sample melt conformation of 20 polystyrene chains of 50 monomers each
